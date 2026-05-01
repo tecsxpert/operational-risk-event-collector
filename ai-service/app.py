@@ -102,6 +102,10 @@ def create_app():
         logger.error("Unhandled internal error: %s", e)
         return jsonify({"error": "Internal server error", "code": 500}), 500
 
+    # ── Pre-load and seed knowledge base (Day 11/12) ─────────────────────────
+    from services.knowledge_base import seed_knowledge_base
+    seed_knowledge_base()
+
     logger.info("AI service started — Flask app configured successfully")
     return app
 
