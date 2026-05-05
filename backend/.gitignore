@@ -1,0 +1,64 @@
+# ======================
+# Environment variables (CRITICAL)
+# ======================
+.env
+*.env
+
+# ======================
+# Build files
+# ======================
+target/
+build/
+*.log
+
+# ======================
+# OS files
+# ======================
+.DS_Store
+Thumbs.db
+
+# ======================
+# IDE files
+# ======================
+.vscode/
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# ======================
+# Spring Boot / Java
+# ======================
+.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+# ======================
+# Node (Frontend)
+# ======================
+node_modules/
+dist/
+coverage/
+
+# ======================
+# Python (AI Service)
+# ======================
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+venv/
+.envrc
+
+# ======================
+# Docker
+# ======================
+docker-data/
+*.pid
+
+# ======================
+# Temporary files
+# ======================
+*.swp
+*.tmp
+*.bak
