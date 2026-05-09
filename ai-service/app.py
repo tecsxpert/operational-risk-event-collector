@@ -11,6 +11,11 @@ from flask import Flask, jsonify
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from dotenv import load_dotenv
+import os
+from flask import Flask
+from flask_cors import CORS
+from dotenv import load_dotenv
+from routes.api import api_bp
 
 # Load environment variables
 load_dotenv()
@@ -116,3 +121,20 @@ if __name__ == "__main__":
     port = int(os.getenv("AI_PORT", 5000))
     debug = os.getenv("FLASK_DEBUG", "false").lower() == "true"
     app.run(host="0.0.0.0", port=port, debug=debug)
+def create_app():
+    app = Flask(__name__)
+    CORS(app) # Allow all origins for development
+    
+    # Register blueprints
+    app.register_blueprint(api_bp, url_prefix='/api')
+    
+    @app.route('/health')
+    def health_check():
+        return {'status': 'healthy', 'service': 'ai-service'}
+        
+    return app
+
+app = create_app()
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000, debug=True)
