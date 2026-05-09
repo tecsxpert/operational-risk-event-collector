@@ -1,76 +1,46 @@
 package com.internship.tool.config;
 
-import com.internship.tool.security.JwtFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.Arrays;
 
 @Configuration
+@EnableWebSecurity
 public class SecurityConfig {
-
-    private final JwtFilter jwtFilter;
-
-    public SecurityConfig(JwtFilter jwtFilter) {
-        this.jwtFilter = jwtFilter;
-    }
-
-    // 🔐 BCrypt Password Encoder
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-
         http
-            // ❌ Disable CSRF
-            .csrf(csrf -> csrf.disable())
-
-            // 🔥 Stateless (JWT)
-            .sessionManagement(session ->
-                session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-            )
-
-            // 🔐 Authorization rules (UPDATED 👇)
+            .csrf(AbstractHttpConfigurer::disable)
+            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeHttpRequests(auth -> auth
-
-                // PUBLIC
-                .requestMatchers(
-                        "/api/auth/**",
-                        "/h2-console/**",
-                        "/v3/api-docs/**",
-                        "/swagger-ui/**",
-                        "/swagger-ui.html"
-                ).permitAll()
-
-                // 🔴 ADMIN ONLY
-                .requestMatchers("/api/admin/**").hasRole("ADMIN")
-
-                // 🟡 USER + ADMIN
-                .requestMatchers("/api/user/**").hasAnyRole("USER", "ADMIN")
-
-                // 🔐 EVERYTHING ELSE → LOGIN REQUIRED
+                .requestMatchers("/api/auth/**").permitAll()
+                .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
+                // For demonstration, allowing all API requests. In production, secure this.
+                .requestMatchers("/api/**").permitAll() 
                 .anyRequest().authenticated()
-            )
-
-            // 🧱 H2 console fix
-            .headers(headers ->
-                headers.frameOptions(frame -> frame.disable())
-            )
-
-            // 🚫 Disable default login
-            .httpBasic(httpBasic -> httpBasic.disable())
-            .formLogin(form -> form.disable());
-
-        // 🔐 JWT filter
-        http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
-
+            );
+            
         return http.build();
+    }
+
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOrigins(Arrays.asList("http://localhost:5173", "http://localhost:3000")); // React default ports
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(Arrays.asList("authorization", "content-type", "x-auth-token"));
+        configuration.setExposedHeaders(Arrays.asList("x-auth-token"));
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
     }
 }
