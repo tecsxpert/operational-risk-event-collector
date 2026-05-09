@@ -17,6 +17,10 @@ public class RiskEventResponse {
     private String category;
     private String severity;
     private String status;
+
+    // 🔥 NEW FIELD (Day 12)
+    private String aiDescription;
+
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }
