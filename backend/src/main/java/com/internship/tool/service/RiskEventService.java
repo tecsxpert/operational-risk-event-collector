@@ -1,20 +1,20 @@
 package com.internship.tool.service;
 
 import com.internship.tool.entity.RiskEvent;
-import com.internship.tool.exception.ResourceNotFoundException;
 import com.internship.tool.repository.RiskEventRepository;
-import com.internship.tool.dto.RiskEventRequest;
-import com.internship.tool.dto.RiskEventResponse;
-import com.internship.tool.specification.RiskEventSpecification;
-
+import jakarta.persistence.EntityNotFoundException;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import com.internship.tool.aop.Auditable;
 
 import java.util.List;
+import java.util.UUID;
 
 @Service
+@RequiredArgsConstructor
 public class RiskEventService {
 
     private final RiskEventRepository repository;
@@ -75,79 +75,66 @@ public class RiskEventService {
     public Page<RiskEventResponse> getAllWithPagination(Pageable pageable) {
         return repository.findAll(pageable)
                 .map(this::mapToResponse);
+    private final RiskEventRepository riskEventRepository;
+
+    public Page<RiskEvent> getAllEvents(Pageable pageable) {
+        return riskEventRepository.findByIsDeletedFalse(pageable);
+    }
+    
+    public List<RiskEvent> getAllEventsList() {
+        return riskEventRepository.findByIsDeletedFalse();
     }
 
-    // 🔥 UPDATED — ADVANCED SEARCH WITH PAGINATION
-    public Page<RiskEventResponse> advancedSearch(
-            String keyword,
-            String category,
-            String severity,
-            String status,
-            Pageable pageable
-    ) {
-
-        Specification<RiskEvent> spec = Specification
-                .where(RiskEventSpecification.hasKeyword(keyword))
-                .and(RiskEventSpecification.hasCategory(category))
-                .and(RiskEventSpecification.hasSeverity(severity))
-                .and(RiskEventSpecification.hasStatus(status));
-
-        return repository.findAll(spec, pageable)
-                .map(this::mapToResponse);
+    public Page<RiskEvent> searchEvents(String query, Pageable pageable) {
+        if (query == null || query.trim().isEmpty()) {
+            return getAllEvents(pageable);
+        }
+        return riskEventRepository.searchEvents(query, pageable);
     }
 
-    // 🔹 GET BY ID
-    public RiskEventResponse getById(Long id) {
-
-        RiskEvent event = repository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "RiskEvent not found with id: " + id
-                ));
-
-        return mapToResponse(event);
+    public RiskEvent getEventById(UUID id) {
+        RiskEvent event = riskEventRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("RiskEvent not found with id: " + id));
+        if (event.getIsDeleted()) {
+            throw new EntityNotFoundException("RiskEvent not found with id: " + id);
+        }
+        return event;
     }
 
-    // 🔹 UPDATE
-    public RiskEventResponse updateRiskEvent(Long id, RiskEventRequest request) {
-
-        RiskEvent event = repository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "RiskEvent not found with id: " + id
-                ));
-
-        event.setTitle(request.getTitle());
-        event.setDescription(request.getDescription());
-        event.setCategory(request.getCategory());
-        event.setSeverity(request.getSeverity());
-        event.setStatus(request.getStatus());
-
-        RiskEvent updated = repository.save(event);
-
-        return mapToResponse(updated);
+    @Transactional
+    @Auditable(action = "CREATE")
+    public RiskEvent createEvent(RiskEvent riskEvent) {
+        // Set default values if needed
+        return riskEventRepository.save(riskEvent);
     }
 
-    // 🔹 DELETE
-    public void deleteRiskEvent(Long id) {
+    @Transactional
+    @Auditable(action = "UPDATE")
+    public RiskEvent updateEvent(UUID id, RiskEvent eventDetails) {
+        RiskEvent existingEvent = getEventById(id);
+        
+        existingEvent.setTitle(eventDetails.getTitle());
+        existingEvent.setDescription(eventDetails.getDescription());
+        existingEvent.setStatus(eventDetails.getStatus());
+        existingEvent.setSeverity(eventDetails.getSeverity());
+        existingEvent.setCategory(eventDetails.getCategory());
+        existingEvent.setOccurredAt(eventDetails.getOccurredAt());
+        
+        if (eventDetails.getAiScore() != null) {
+             existingEvent.setAiScore(eventDetails.getAiScore());
+        }
+        if (eventDetails.getAiAnalysis() != null) {
+             existingEvent.setAiAnalysis(eventDetails.getAiAnalysis());
+        }
 
-        RiskEvent event = repository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "RiskEvent not found with id: " + id
-                ));
-
-        repository.delete(event);
+        return riskEventRepository.save(existingEvent);
     }
 
-    // 🔹 MAPPING
-    private RiskEventResponse mapToResponse(RiskEvent event) {
-        return RiskEventResponse.builder()
-                .id(event.getId())
-                .title(event.getTitle())
-                .description(event.getDescription())
-                .category(event.getCategory())
-                .severity(event.getSeverity())
-                .status(event.getStatus())
-                .createdAt(event.getCreatedAt())
-                .updatedAt(event.getUpdatedAt())
-                .build();
+    @Transactional
+    @Auditable(action = "DELETE")
+    public void deleteEvent(UUID id) {
+        RiskEvent existingEvent = getEventById(id);
+        existingEvent.setIsDeleted(true);
+        riskEventRepository.save(existingEvent);
     }
 }
